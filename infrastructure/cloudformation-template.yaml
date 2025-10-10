@@ -1,0 +1,235 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'FinTrust AI - Secure FinTech Compliance Copilot Infrastructure'
+
+Parameters:
+  Environment:
+    Type: String
+    Default: 'dev'
+    AllowedValues: ['dev', 'staging', 'prod']
+    Description: 'Environment name'
+  
+  VantaApiKey:
+    Type: String
+    NoEcho: true
+    Description: 'Vanta API Key for compliance verification'
+  
+  KMSKeyAlias:
+    Type: String
+    Default: 'fintrust-ai-key'
+    Description: 'KMS key alias for encryption'
+
+Resources:
+  # S3 Bucket for reports and audit logs
+  FinTrustS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'fintrust-ai-reports-${Environment}-${AWS::AccountId}'
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+              KMSMasterKeyID: !Ref FinTrustKMSKey
+          - BucketKeyEnabled: true
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldVersions
+            Status: Enabled
+            NoncurrentVersionExpirationInDays: 30
+          - Id: TransitionToIA
+            Status: Enabled
+            Transitions:
+              - StorageClass: STANDARD_IA
+                TransitionInDays: 30
+
+  # KMS Key for encryption
+  FinTrustKMSKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: 'KMS key for FinTrust AI encryption'
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: Enable IAM User Permissions
+            Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: 'kms:*'
+            Resource: '*'
+          - Sid: Allow Lambda Service
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action:
+              - kms:Decrypt
+              - kms:GenerateDataKey
+            Resource: '*'
+      KeyUsage: ENCRYPT_DECRYPT
+      KeySpec: SYMMETRIC_DEFAULT
+
+  FinTrustKMSKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: !Sub 'alias/${KMSKeyAlias}-${Environment}'
+      TargetKeyId: !Ref FinTrustKMSKey
+
+  # CloudWatch Log Group
+  FinTrustLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/fintrust-ai-${Environment}'
+      RetentionInDays: 30
+
+  # IAM Role for Lambda
+  FinTrustLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'FinTrustLambdaRole-${Environment}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: FinTrustPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                  - bedrock:InvokeModelWithResponseStream
+                  - bedrock:ListFoundationModels
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                  - s3:ListBucket
+                Resource:
+                  - !GetAtt FinTrustS3Bucket.Arn
+                  - !Sub '${FinTrustS3Bucket.Arn}/*'
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:GenerateDataKey
+                  - kms:DescribeKey
+                Resource: !GetAtt FinTrustKMSKey.Arn
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !GetAtt FinTrustLogGroup.Arn
+
+  # Lambda Function
+  FinTrustLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub 'fintrust-ai-${Environment}'
+      Runtime: python3.9
+      Handler: main.handler
+      Role: !GetAtt FinTrustLambdaRole.Arn
+      Code:
+        ZipFile: |
+          def handler(event, context):
+              return {
+                  'statusCode': 200,
+                  'body': 'FinTrust AI Lambda function deployed successfully'
+              }
+      Environment:
+        Variables:
+          ENVIRONMENT: !Ref Environment
+          S3_BUCKET_NAME: !Ref FinTrustS3Bucket
+          KMS_KEY_ID: !Ref FinTrustKMSKey
+          VANTA_API_KEY: !Ref VantaApiKey
+          LOG_GROUP_NAME: !Ref FinTrustLogGroup
+      Timeout: 300
+      MemorySize: 512
+      Layers:
+        - !Ref FinTrustLambdaLayer
+
+  # Lambda Layer for dependencies
+  FinTrustLambdaLayer:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      LayerName: !Sub 'fintrust-ai-deps-${Environment}'
+      Description: 'FinTrust AI Python dependencies'
+      Content:
+        S3Bucket: !Ref FinTrustS3Bucket
+        S3Key: 'layers/dependencies.zip'
+      CompatibleRuntimes:
+        - python3.9
+
+  # API Gateway
+  FinTrustAPIGateway:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: !Sub 'fintrust-ai-api-${Environment}'
+      Description: 'FinTrust AI API Gateway'
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+
+  # CloudTrail for audit logging
+  FinTrustCloudTrail:
+    Type: AWS::CloudTrail::Trail
+    Properties:
+      TrailName: !Sub 'fintrust-ai-trail-${Environment}'
+      S3BucketName: !Ref FinTrustS3Bucket
+      S3KeyPrefix: 'cloudtrail/'
+      IncludeGlobalServiceEvents: true
+      IsMultiRegionTrail: true
+      IsLogging: true
+      EventSelectors:
+        - ReadWriteType: All
+          IncludeManagementEvents: true
+          DataResources:
+            - Type: AWS::S3::Object
+              Values:
+                - !Sub '${FinTrustS3Bucket.Arn}/*'
+            - Type: AWS::Lambda::Function
+              Values:
+                - !GetAtt FinTrustLambdaFunction.Arn
+
+Outputs:
+  S3BucketName:
+    Description: 'S3 Bucket for FinTrust AI reports'
+    Value: !Ref FinTrustS3Bucket
+    Export:
+      Name: !Sub '${AWS::StackName}-S3Bucket'
+
+  KMSKeyId:
+    Description: 'KMS Key ID for encryption'
+    Value: !Ref FinTrustKMSKey
+    Export:
+      Name: !Sub '${AWS::StackName}-KMSKey'
+
+  LambdaFunctionName:
+    Description: 'Lambda Function Name'
+    Value: !Ref FinTrustLambdaFunction
+    Export:
+      Name: !Sub '${AWS::StackName}-LambdaFunction'
+
+  APIGatewayId:
+    Description: 'API Gateway ID'
+    Value: !Ref FinTrustAPIGateway
+    Export:
+      Name: !Sub '${AWS::StackName}-APIGateway'
+
+  CloudTrailName:
+    Description: 'CloudTrail Name'
+    Value: !Ref FinTrustCloudTrail
+    Export:
+      Name: !Sub '${AWS::StackName}-CloudTrail'
