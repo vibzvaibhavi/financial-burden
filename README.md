@@ -1,15 +1,36 @@
 # FinTrust AI - Secure FinTech Compliance Copilot
 
-FinTrust AI is a secure compliance copilot that helps financial institutions analyze customer activity, KYC profiles, and AML policies using AWS Bedrock (Claude 3 Sonnet 4) for reasoning and Vanta API for real-time compliance posture verification.
+**Built for the 7-Hour AWS Loft FinTech Hackathon**
 
-## 🎯 Key Features
+---
 
-- **Secure AI Analysis**: Uses AWS Bedrock Claude 3 Sonnet 4 for risk assessment
-- **Real-time Compliance**: Integrates with Vanta API for SOC 2, ISO 27001 verification
-- **Audit Trail**: Full CloudTrail logging and encrypted S3 storage
-- **Risk Scoring**: Automated Low/Medium/High risk classification
-- **SAR Generation**: Automatic Suspicious Activity Report creation
+## The Problem
 
+Financial institutions face a relentless barrage of complex regulations and sophisticated threats like money laundering and fraud. Manually reviewing every transaction is impossible, and legacy rule-based systems generate floods of false positives, wasting valuable time for compliance officers.
+
+## Our Solution: FinTrust AI
+
+**FinTrust AI** is a next-generation compliance copilot that leverages the power of Generative AI to automate and enhance the risk analysis process. In just 7 hours, we built a functional prototype that can:
+
+1.  **Analyze Financial Transactions with AI:** Instead of rigid rules, we use AWS Bedrock (Claude 3 Sonnet) to analyze the *narrative* and *context* of financial transactions, detecting nuanced signs of illicit activity that traditional systems miss.
+2.  **Generate Suspicious Activity Reports (SARs):** When a high-risk transaction is identified, the AI automatically generates a detailed, human-readable SAR, complete with a risk score and a justification for its findings.
+3.  **Verify Compliance Status:** Integrates with the Vanta API to provide a real-time dashboard of the organization's compliance posture, ensuring that security controls are being met.
+
+This is not just an alerting system; it's a co-pilot that empowers compliance teams to focus on genuine threats, not noise.
+
+---
+
+## How It Works: The AI-Powered Analysis Flow
+
+1.  **Transaction Ingestion:** The backend receives a transaction for analysis (e.g., a large international wire transfer).
+2.  **AI Risk Assessment:** The transaction data is sent to a secure prompt on **AWS Bedrock**. Claude 3 Sonnet evaluates the transaction against a sophisticated set of learned patterns and contextual red flags for financial crime.
+3.  **Intelligent Response:** The model returns a structured JSON object containing:
+    *   A boolean `is_suspicious` flag.
+    *   A risk score from 1 to 100.
+    *   A detailed `summary` explaining *why* the transaction is or isn't suspicious.
+4.  **Automated SAR Generation:** If the risk score exceeds a defined threshold, the AI-generated summary is used to automatically populate a Suspicious Activity Report, which is then stored securely.
+
+---
 ## 🏗️ Architecture
 
 ```
