@@ -18,13 +18,14 @@ Frontend (React) → FastAPI Backend → AWS Bedrock + Vanta API
                               S3 (Encrypted) + CloudTrail
 ```
 
-## 🛡️ Security Features
-
-- No static API keys - all calls via IAM roles
-- End-to-end encryption (KMS + TLS)
-- Full audit trail (CloudTrail)
-- Compliance cross-check using Vanta API
-- Secure data handling within AWS boundary
+## 🛡️ Security Features and Architecture
+| Security Feature           | Description                                                                                                                            |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| **IAM Role-Based Access**  | No static API keys — all AWS service calls use IAM roles with least-privilege permissions.                                             |
+| **End-to-End Encryption**  | All data encrypted at rest and in transit via **AWS KMS** and **TLS 1.2+**.                                                            |
+| **Full Audit Trail**       | All actions logged through **AWS CloudTrail** for traceability and compliance evidence.                                                |
+| **Compliance Cross-Check** | **Vanta API** integration ensures real-time adherence to SOC 2, ISO 27001, and other frameworks.                                       |
+| **AWS Data Boundary**      | All computation and storage occur within the **AWS regional compliance boundary**, ensuring data sovereignty and regulatory alignment. |
 
 ## 🚀 Quick Start
 
@@ -43,9 +44,13 @@ Frontend (React) → FastAPI Backend → AWS Bedrock + Vanta API
    ```
 
 3. **Environment Configuration**:
-   - Set up AWS credentials with Bedrock access
-   - Configure Vanta API key
-   - Set up IAM roles and KMS keys
+# AWS Bedrock Credentials
+AWS_ACCESS_KEY_ID="YOUR_AWS_ACCESS_KEY"
+AWS_SECRET_ACCESS_KEY="YOUR_AWS_SECRET_KEY"
+AWS_REGION_NAME="us-east-1"
+
+# Vanta Compliance API
+VANTA_API_KEY="YOUR_VANTA_API_KEY"
 
 ## 📁 Project Structure
 
