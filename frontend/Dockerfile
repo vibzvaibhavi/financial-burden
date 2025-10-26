@@ -3,17 +3,18 @@ FROM node:18-alpine
 # Set working directory
 WORKDIR /app
 
-# Copy package files
+# Copy package files and install ALL dependencies
 COPY package*.json ./
-
-# Install dependencies
-RUN npm ci --only=production
+RUN npm install
 
 # Copy source code
 COPY . .
 
 # Build the application
 RUN npm run build
+
+# After building, remove development dependencies to keep the image small
+RUN npm prune --production
 
 # Install serve to run the production build
 RUN npm install -g serve

@@ -8,6 +8,10 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
+    env_file:
+      - ../backend/.env  # <-- THIS LINE IS NEW AND CRITICAL
+    volumes:
+      - ../backend:/app    # <-- THIS LINE IS NEW AND CRITICAL
     environment:
       - AWS_REGION=us-east-1
       - VANTA_API_KEY=${VANTA_API_KEY}
@@ -21,25 +25,25 @@ services:
       - S3_BUCKET_NAME=fintrust-ai-reports
       - KMS_KEY_ID=alias/fintrust-ai-key
       - CLOUDWATCH_LOG_GROUP=fintrust-ai-logs
-    volumes:
-      - ../backend:/app
     depends_on:
       - redis
     networks:
       - fintrust-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
   # Frontend
   frontend:
     build:
       context: ../frontend
       dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=http://api.fintrust-ai.local
     ports:
       - "3000:3000"
-    environment:
-      - VITE_API_URL=http://localhost:8000
-    volumes:
-      - ../frontend:/app
-      - /app/node_modules
     depends_on:
       - backend
     networks:
